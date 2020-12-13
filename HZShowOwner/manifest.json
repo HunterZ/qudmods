@@ -1,0 +1,8 @@
+{
+	"title": "{{G|Show Owner && Faction (in overlay tooltip)}}",
+	"description": "Adds basic owner and faction information to overlay tooltips when looking at things. Also moves reaction and assessment one-liners above long description.\n\nWorks with new and existing saves, and is safe to remove at any time.",
+  "Tags": "Cosmetic,Script,UX,Faction",
+	"version": "2.1",
+	"author": "HunterZ",
+	"previewImage": "preview.png"
+}
