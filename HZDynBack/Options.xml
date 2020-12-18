@@ -1,0 +1,3 @@
+<options>
+  <option ID="HZDynBackOptionSmooth" DisplayText="HZDynBack: Use smooth transitions (disable for performance)" Category="HunterZ Mods" Type="Checkbox" Default="Yes"></option>
+</options>

@@ -83,6 +83,9 @@ namespace HunterZ.HZDynBack
         0.750f * defaultColorBrightness)
     };
 
+    // interpolated sundial color by turn number
+    private static Color[] sundialColorByTurn = null;
+
     // turn number for each sundial index
     private static readonly int[] sundialTurn = new[]
     {
@@ -109,6 +112,10 @@ namespace HunterZ.HZDynBack
 
     // length of smooth color transitions
     private static readonly long transitionTotalMilliseconds = 1000;
+
+    // bool wrapper for UI "do smooth transitions" option
+    private static bool DoSmoothTransition =>
+      XRL.UI.Options.GetOption("HZDynBackOptionSmooth").EqualsNoCase("Yes");
 
     // return brightness (V component of HSV) of given RGB color
     private static float GetBrightness(Color c)
@@ -252,9 +259,10 @@ namespace HunterZ.HZDynBack
       if (ColorBlack != null) { ColorBlack.SetValue(null, color); }
     }
 
-    // set nextColor to desired background color based on current game state
+    // set targetColor to desired background color based on current game state
     // does not check game world
-    private static void UpdateTargetColor()
+    // returns whether targetColor actually changed
+    private static bool UpdateTargetColor()
     {
       // optimization: check whether something significant happened
       int  depth        = GetPlayerDepth();
@@ -266,8 +274,11 @@ namespace HunterZ.HZDynBack
           targetColor  != defaultColor)
       {
         // nope, abort
-        return;
+        return false;
       }
+
+      // save previous target color for reporting whether it got changed
+      Color targetColorOld = targetColor;
 
       // handle various states that have different background color behaviors
       if (!inJoppaWorld) // thinworld
@@ -294,21 +305,40 @@ namespace HunterZ.HZDynBack
       }
       else // ground level
       {
-        // populate turnList if needed
-        int curIndex  = GetSundialIndex(turn);
-        int nextIndex = (curIndex + 1) % sundialTurn.Length;
-        // interpolate color based on current turn's distance between indexes
-        targetColor = Color.Lerp(
-          sundialColor[curIndex],
-          sundialColor[nextIndex],
-          GetSundialIndexDistance(turn)
-        );
+        // populate sundialColorByTurn array if needed
+        if (sundialColorByTurn == null)
+        {
+          sundialColorByTurn = new Color[Calendar.turnsPerDay];
+          for (int t = 0; t < Calendar.turnsPerDay; ++t)
+          {
+            XRL.UI.Loading.SetLoadingStatus(
+              XRL.World.Event.NewStringBuilder().Clear()
+              .Append("Calculating surface background color for turn ")
+              .Append(t)
+              .Append(" of ")
+              .Append(Calendar.turnsPerDay)
+              .Append("...")
+              .ToString()
+            );
+            int curIndex  = GetSundialIndex(t);
+            int nextIndex = (curIndex + 1) % sundialTurn.Length;
+            // interpolate color based on current turn's distance between indexes
+            sundialColorByTurn[t] = Color.Lerp(
+              sundialColor[curIndex],
+              sundialColor[nextIndex],
+              GetSundialIndexDistance(t)
+            );
+          }
+        }
+        targetColor = sundialColorByTurn[turn];
       }
 
       // update significance trackers
       lastDepth = depth;
       lastJoppa = inJoppaWorld;
       lastTurn  = turn;
+
+      return targetColor != targetColorOld;
     }
 
     // public class-specific API
@@ -353,14 +383,28 @@ namespace HunterZ.HZDynBack
       }
 
       // update target color based on game state
-      Color targetColorOld = targetColor;
-      UpdateTargetColor();
+      bool targetColorChanged = UpdateTargetColor();
 
-      // handle potential new target color states
+      // handle potential target color changes
+      if (!DoSmoothTransition)
+      {
+        // not doing smooth transitions
+        // stop the stopwatch if it's running (in case user toggled option)
+        if (stopwatch.IsRunning) { stopwatch.Reset(); }
+        // set new target color directly
+        if (targetColor != lastFinalColor)
+        {
+          SetBackgroundColor(targetColor, true);
+        }
+        // abort
+        return;
+      }
+
+      // doing smooth transitions
       if (stopwatch.IsRunning)
       {
         // transition already in progress
-        if (targetColor != targetColorOld)
+        if (targetColorChanged)
         {
           // target changed
           // lock in current transition color as new starting point
