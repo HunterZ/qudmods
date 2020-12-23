@@ -2,7 +2,7 @@
 	"title": "{{visage|Dynamic Background Color}}",
 	"description": "Changes the play area's background color dynamically! On the surface, the color generally follows the status bar time indicator, gradually transitioning from one color to the next. Underground, the background becomes progressively darker the deeper you delve.\r\n\r\nWorks with new and existing saves.",
   "Tags": "Script,UX,Background,Cosmetic",
-	"version": "4.0",
+	"version": "4.1",
 	"author": "HunterZ",
 	"previewImage": "thumbnail.png"
 }

@@ -4,90 +4,95 @@ using XRL.World;   // Calendar, Cell, etc.
 
 namespace HunterZ.HZDynBack
 {
-  public class BackgroundColorUtil
+  // general public color constants and stateless utilities
+  public class HZColorUtil
   {
-    // private class API
-
     // default in vanilla display.txt is 15,59,58
-    private static readonly Color defaultColor = new Color(0.059f, 0.231f, 0.227f, 1f);
+    public static readonly Color defaultColor = new Color(0.059f, 0.231f, 0.227f, 1f);
 
     // brightness of default color
     // this MUST be defined after defaultColor, or else it will end up as zero!
-    private static readonly float defaultColorBrightness = GetBrightness(defaultColor);
+    public static readonly float defaultColorBrightness = GetBrightness(defaultColor);
 
-    // last recorded player depth
-    private static int lastDepth = -1;
+    // return brightness (V component of HSV) of given RGB color
+    public static float GetBrightness(Color c)
+    {
+      Color.RGBToHSV(c, out _, out _, out float v);
+      return v;
+    }
 
-    // last color set by SetBackgroundColor(c, true), or by transition end
-    private static Color lastFinalColor = defaultColor;
+    // multiply color's brightness level by given factor
+    public static Color MultiplyBrightness(Color c, float b)
+    {
+      Color.RGBToHSV(c, out float h, out float s, out float v);
+      return Color.HSVToRGB(h, s, v * b);
+    }
 
-    // last recorded Joppa-versus-thinworld state
-    private static bool lastJoppa = true;
+    // override color's brightness with provided value between 0 and 1
+    public static Color OverrideBrightness(Color c, float b)
+    {
+      Color.RGBToHSV(c, out float h, out float s, out _);
+      return Color.HSVToRGB(h, s, b);
+    }
+  }
 
-    // last recorded game turn
-    private static int lastTurn = -1;
-
-    // stopwatch for timing the smooth transition change between desired colors
-    // if stopwatch is active, a transition is in progress
-    // stopwatch elapsed time is used only indirectly to protect from jumps
-    private static readonly System.Diagnostics.Stopwatch stopwatch =
-      new System.Diagnostics.Stopwatch();
-
-    // last processed stopwatch time
-    private static long stopwatchLastMilliseconds = 0;
+  // static class for managing sundial (surface) colors
+  public class SundialColorManager
+  {
+    // private class API
 
     // color for each sundial index
     // brightness replaced with some fraction of the default background color's
     // note that brightness should never be lower than dungeon level 1
-    private static readonly Color[] sundialColor = new[]
+    private static readonly Color[] colorByIndex = new[]
     {
       // 0 => dawn (turns 325 to 421, duration 97) [Calendar.startOfDay / 10]
-      OverrideBrightness(
+      HZColorUtil.OverrideBrightness(
         new Color(0.063f, 0.235f, 0.224f, 1f), //  16  60  57
-        0.875f * defaultColorBrightness),
+        0.875f * HZColorUtil.defaultColorBrightness),
       // 1 => sunrise (turns 422 to 517, duration 96)
-      OverrideBrightness(
+      HZColorUtil.OverrideBrightness(
         new Color(0.247f, 0.647f, 0.733f, 1f), //  63 165 187
-        0.875f * defaultColorBrightness),
+        0.875f * HZColorUtil.defaultColorBrightness),
       // 2 => morning (turns 518 to 614, duration 97)
-      OverrideBrightness(
+      HZColorUtil.OverrideBrightness(
         new Color(0.475f, 0.753f, 0.808f, 1f), // 121 192 206
-        1.000f * defaultColorBrightness),
+        1.000f * HZColorUtil.defaultColorBrightness),
       // 3 => midday (turns 615 to 710, duration 96)
-      OverrideBrightness(
+      HZColorUtil.OverrideBrightness(
         new Color(0.475f, 0.753f, 0.808f, 1f), // 121 192 206
-        1.000f * defaultColorBrightness),
+        1.000f * HZColorUtil.defaultColorBrightness),
       // 4 => afternoon (turns 711 to 807, duration 97)
-      OverrideBrightness(
+      HZColorUtil.OverrideBrightness(
         new Color(0.475f, 0.753f, 0.808f, 1f), // 121 192 206
-        1.000f * defaultColorBrightness),
+        1.000f * HZColorUtil.defaultColorBrightness),
       // 5 => sunset (turns 808 to 903, duration 96)
-      OverrideBrightness(
+      HZColorUtil.OverrideBrightness(
         new Color(0.647f, 0.290f, 0.180f, 1f), // 165  74  46
-        0.875f * defaultColorBrightness),
+        0.875f * HZColorUtil.defaultColorBrightness),
       // 6 => twilight (turns 904 to 999, duration 96)
-      OverrideBrightness(
+      HZColorUtil.OverrideBrightness(
         new Color(0.224f, 0.157f, 0.310f, 1f), //  57  40  79
-        0.875f * defaultColorBrightness),
+        0.875f * HZColorUtil.defaultColorBrightness),
       // 7 => evening (turns 1000 to 1174, duration 175) [Calendar.startOfNight / 10]
-      OverrideBrightness(
+      HZColorUtil.OverrideBrightness(
         new Color(0.000f, 0.173f, 0.161f, 1f), //   0  44  41
-        0.750f * defaultColorBrightness),
+        0.750f * HZColorUtil.defaultColorBrightness),
       // 8 => midnight (turns 1175 to 149, duration 175) [encompasses turn 0]
-      OverrideBrightness(
+      HZColorUtil.OverrideBrightness(
         new Color(0.000f, 0.173f, 0.161f, 1f), //   0  44  41
-        0.750f * defaultColorBrightness),        // darker due to longer duration
+        0.750f * HZColorUtil.defaultColorBrightness),
       // 9 => late (turns 150 to 324, duration 175)
-      OverrideBrightness(
+      HZColorUtil.OverrideBrightness(
         new Color(0.000f, 0.173f, 0.161f, 1f), //   0  44  41
-        0.750f * defaultColorBrightness)
+        0.750f * HZColorUtil.defaultColorBrightness)
     };
 
     // interpolated sundial color by turn number
-    private static Color[] sundialColorByTurn = null;
+    private static Color[] colorByTurn = null;
 
     // turn number for each sundial index
-    private static readonly int[] sundialTurn = new[]
+    private static readonly int[] turnByIndex = new[]
     {
        325,
        422,
@@ -101,51 +106,17 @@ namespace HunterZ.HZDynBack
        150
     };
 
-    // smooth color transition target
-    private static Color targetColor = defaultColor;
-
-    // last transitional color set
-    private static Color transitionColor = defaultColor;
-
-    // elapsed transition time
-    private static long transitionElapsedMilliseconds = -1;
-
-    // length of smooth color transitions
-    private static readonly long transitionTotalMilliseconds = 1000;
-
-    // bool wrapper for UI "do smooth transitions" option
-    private static bool DoSmoothTransition =>
-      XRL.UI.Options.GetOption("HZDynBackOptionSmooth").EqualsNoCase("Yes");
-
-    // return brightness (V component of HSV) of given RGB color
-    private static float GetBrightness(Color c)
-    {
-      Color.RGBToHSV(c, out _, out _, out float v);
-      return v;
-    }
-
-    // get player's current depth
-    // 10 => surface
-    // <10 => above surface?
-    // >10 => underground
-    // returns 10 if depth cannot be determined for some reason
-    private static int GetPlayerDepth()
-    {
-      int? depthField = XRL.Core.XRLCore.Core?.Game?.Player?.Body?.CurrentZone?.Z;
-      return depthField == null ? 10 : depthField.Value;
-    }
-
     // get sundial index for given turn number
     // this is basically a replica of the game's status bar sundial sprite index logic
     // does not check world
     // returns -1 if input out of range
-    private static int GetSundialIndex(int turnNumber)
+    private static int GetIndex(int turnNumber)
     {
       if (turnNumber < 0 || turnNumber >= Calendar.turnsPerDay) { throw new System.Exception("HZDynBack::GetSundialIndex(): turnNumber=" + turnNumber.ToString() + " out of range"); }
-      for (int i = 0; i < sundialTurn.Length; ++i)
+      for (int i = 0; i < turnByIndex.Length; ++i)
       {
-        int bound1 = sundialTurn[i];
-        int bound2 = sundialTurn[(i + 1) % sundialTurn.Length];
+        int bound1 = turnByIndex[i];
+        int bound2 = turnByIndex[(i + 1) % turnByIndex.Length];
         if (bound2 > bound1)
         {
           // normal case
@@ -193,15 +164,15 @@ namespace HunterZ.HZDynBack
     }
 
     // return value in range [0, 1) representing progress between indices
-    private static float GetSundialIndexDistance(int turnNumber)
+    private static float GetIndexDistance(int turnNumber)
     {
       if (turnNumber < 0 || turnNumber >= Calendar.turnsPerDay) { throw new System.Exception("HZDynBack::GetSundialIndexDistance(): turnNumber=" + turnNumber.ToString() + " out of range"); }
       // get current and next indexes
-      int currentIndex = GetSundialIndex(turnNumber);
-      int nextIndex = (currentIndex + 1) % sundialTurn.Length;
+      int currentIndex = GetIndex(turnNumber);
+      int nextIndex = (currentIndex + 1) % turnByIndex.Length;
       // get last and next index turns
-      int lastIndexTurn = sundialTurn[currentIndex];
-      int nextIndexTurn = sundialTurn[nextIndex];
+      int lastIndexTurn = turnByIndex[currentIndex];
+      int nextIndexTurn = turnByIndex[nextIndex];
       // unwrap next index turn to be larger than other turn values if needed
       if (nextIndexTurn < lastIndexTurn) { nextIndexTurn += Calendar.turnsPerDay; }
       // calculate deltas relative to last index turn number
@@ -212,25 +183,112 @@ namespace HunterZ.HZDynBack
       return distance;
     }
 
+    private static void PopulateColorByTurn()
+    {
+      // abort if already populated
+      if (colorByTurn != null) { return; }
+      // populate colorByTurn array
+      colorByTurn = new Color[Calendar.turnsPerDay];
+      for (int turn = 0; turn < Calendar.turnsPerDay; ++turn)
+      {
+        XRL.UI.Loading.SetLoadingStatus(
+          XRL.World.Event.NewStringBuilder().Clear()
+          .Append("Calculating surface background color for turn ")
+          .Append(turn)
+          .Append(" of ")
+          .Append(Calendar.turnsPerDay)
+          .Append("...")
+          .ToString()
+        );
+        int curIndex  = GetIndex(turn);
+        int nextIndex = (curIndex + 1) % turnByIndex.Length;
+        // interpolate color based on current turn's distance between indexes
+        colorByTurn[turn] = Color.Lerp(
+          colorByIndex[curIndex],
+          colorByIndex[nextIndex],
+          GetIndexDistance(turn)
+        );
+      }
+    }
+
+    // public class API
+
+    // return interpolated sundial color for given turn
+    public static Color GetColor(int turnNumber)
+    {
+      if (turnNumber < 0 || turnNumber >= Calendar.turnsPerDay) { throw new System.Exception("HZDynBack::GetColorByTurn(): turnNumber=" + turnNumber.ToString() + " out of range"); }
+      // populate sundialColorByTurn array if needed
+      PopulateColorByTurn();
+      return colorByTurn[turnNumber];
+    }
+  }
+
+  // static class for managing background colors
+  public class BackgroundColorManager
+  {
+    // private class API
+
+    // last recorded player depth
+    private static int lastDepth = -1;
+
+    // last color set by SetBackgroundColor(c, true), or by transition end
+    private static Color lastFinalColor = HZColorUtil.defaultColor;
+
+    // last recorded Joppa-versus-thinworld state
+    private static bool lastJoppa = true;
+
+    // last recorded game turn
+    private static int lastTurn = -1;
+
+    // stopwatch for timing the smooth transition change between desired colors
+    // if stopwatch is active, a transition is in progress
+    // stopwatch elapsed time is used only indirectly to protect from jumps
+    private static readonly System.Diagnostics.Stopwatch stopwatch =
+      new System.Diagnostics.Stopwatch();
+
+    // last processed stopwatch time
+    private static long stopwatchLastMilliseconds = 0;
+
+    // smooth color transition target
+    private static Color targetColor = HZColorUtil.defaultColor;
+
+    // last transitional color set
+    private static Color transitionColor = HZColorUtil.defaultColor;
+
+    // elapsed transition time
+    private static long transitionElapsedMilliseconds = -1;
+
+    // length of smooth color transitions
+    private static readonly long transitionTotalMilliseconds = 1000;
+
+    // bool wrapper for UI "do smooth transitions" option
+    private static bool DoSmoothTransition =>
+      XRL.UI.Options.GetOption("HZDynBackOptionSmooth").EqualsNoCase("Yes");
+
+    private static int GameTurn => Calendar.CurrentDaySegment / 10;
+
+    // get player's current depth
+    // 10 => surface
+    // <10 => above surface?
+    // >10 => underground
+    // returns 10 if depth cannot be determined for some reason
+    private static int PlayerDepth
+    {
+      get
+      {
+        int? depthField = XRL.Core.XRLCore.Core?.Game?.Player?.Body?.CurrentZone?.Z;
+        return depthField == null ? 10 : depthField.Value;
+      }
+    }
+
     // return true if player is in "Joppa" world
-    private static bool IsInJoppaWorld()
+    private static bool PlayerInJoppaWorld
     {
-      bool? inJoppaWorld = XRL.Core.XRLCore.Core?.Game?.Player?.Body?.CurrentCell?.ParentZone?._ZoneID?.StartsWith("Joppa");
-      return inJoppaWorld != null && inJoppaWorld.Value;
-    }
-
-    // multiply color's brightness level by given factor
-    private static Color MultiplyBrightness(Color c, float b)
-    {
-      Color.RGBToHSV(c, out float h, out float s, out float v);
-      return Color.HSVToRGB(h, s, v * b);
-    }
-
-    // override color's brightness with provided value between 0 and 1
-    private static Color OverrideBrightness(Color c, float b)
-    {
-      Color.RGBToHSV(c, out float h, out float s, out _);
-      return Color.HSVToRGB(h, s, b);
+      get
+      {
+        bool? inJoppaWorld = XRL.Core.XRLCore.Core?.Game?.Player?.Body?.CurrentCell?.ParentZone?._ZoneID?.StartsWith("Joppa");
+        return inJoppaWorld != null && inJoppaWorld.Value;
+      }
     }
 
     // set game background color to specified value
@@ -265,13 +323,13 @@ namespace HunterZ.HZDynBack
     private static bool UpdateTargetColor()
     {
       // optimization: check whether something significant happened
-      int  depth        = GetPlayerDepth();
-      bool inJoppaWorld = IsInJoppaWorld();
-      int  turn         = Calendar.CurrentDaySegment / 10;
+      int  depth        = PlayerDepth;
+      bool inJoppaWorld = PlayerInJoppaWorld;
+      int  turn         = GameTurn;
       if (depth        == lastDepth &&
           inJoppaWorld == lastJoppa &&
           turn         == lastTurn  &&
-          targetColor  != defaultColor)
+          targetColor  != HZColorUtil.defaultColor)
       {
         // nope, abort
         return false;
@@ -284,53 +342,29 @@ namespace HunterZ.HZDynBack
       if (!inJoppaWorld) // thinworld
       {
         // use default
-        targetColor = defaultColor;
+        targetColor = HZColorUtil.defaultColor;
       }
       else if (depth < 10) // on the world map
       {
         // use default
         // this is for readability but also because I can't seem to fix jumping
-        targetColor = defaultColor;
+        targetColor = HZColorUtil.defaultColor;
       }
       else if (depth >= 11) // underground
       {
         // optimization: only recalculate if depth changed
         // ...or if at default color (e.g. due to death prompt)
         if (depth != lastDepth ||
-            targetColor == defaultColor)
+            targetColor == HZColorUtil.defaultColor)
         {
           // multiply V by value between 0 and 1 that diminishes with depth
-          targetColor = MultiplyBrightness(defaultColor, 1f / Mathf.Sqrt(depth - 9));
+          targetColor = HZColorUtil.MultiplyBrightness(
+            HZColorUtil.defaultColor, 1f / Mathf.Sqrt(depth - 9));
         }
       }
       else // ground level
       {
-        // populate sundialColorByTurn array if needed
-        if (sundialColorByTurn == null)
-        {
-          sundialColorByTurn = new Color[Calendar.turnsPerDay];
-          for (int t = 0; t < Calendar.turnsPerDay; ++t)
-          {
-            XRL.UI.Loading.SetLoadingStatus(
-              XRL.World.Event.NewStringBuilder().Clear()
-              .Append("Calculating surface background color for turn ")
-              .Append(t)
-              .Append(" of ")
-              .Append(Calendar.turnsPerDay)
-              .Append("...")
-              .ToString()
-            );
-            int curIndex  = GetSundialIndex(t);
-            int nextIndex = (curIndex + 1) % sundialTurn.Length;
-            // interpolate color based on current turn's distance between indexes
-            sundialColorByTurn[t] = Color.Lerp(
-              sundialColor[curIndex],
-              sundialColor[nextIndex],
-              GetSundialIndexDistance(t)
-            );
-          }
-        }
-        targetColor = sundialColorByTurn[turn];
+        targetColor = SundialColorManager.GetColor(turn);
       }
 
       // update significance trackers
@@ -341,14 +375,14 @@ namespace HunterZ.HZDynBack
       return targetColor != targetColorOld;
     }
 
-    // public class-specific API
+    // public class API
 
     // public interface to reset background color
     public static void ResetBackgroundColor()
     {
       stopwatch.Reset();
-      targetColor = defaultColor;
-      SetBackgroundColor(defaultColor, true);
+      targetColor = HZColorUtil.defaultColor;
+      SetBackgroundColor(targetColor, true);
     }
 
     // primary public interface to perform automatic background color updates
@@ -445,7 +479,7 @@ namespace HunterZ.HZDynBack
     public static bool Prefix()
     {
       // set default background color
-      BackgroundColorUtil.ResetBackgroundColor();
+      BackgroundColorManager.ResetBackgroundColor();
 
       // allow the original implementation to execute
       return true;
@@ -462,7 +496,7 @@ namespace HunterZ.HZDynBack
       // this seems to get passed in on game end
       if (Message == "!clear")
       {
-        BackgroundColorUtil.ResetBackgroundColor();
+        BackgroundColorManager.ResetBackgroundColor();
       }
 
       // allow the original implementation to execute
@@ -501,7 +535,7 @@ namespace HunterZ.HZDynBack
   {
     public static bool Prefix()
     {
-      BackgroundColorUtil.Update();
+      BackgroundColorManager.Update();
       return true;
     }
   }

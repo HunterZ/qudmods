@@ -12,6 +12,11 @@ namespace HunterZ.HZShowOwner
       // name line
       //  name
       _ = stringBuilder.Append(O.DisplayName);
+      //  id (optional)
+      if (XRL.UI.Options.GetOption("HZShowOwnerOptionId").EqualsNoCase("Yes"))
+      {
+        _ = stringBuilder.Append(" {").Append(O.Blueprint).Append("#").Append(O.id).Append("}");
+      }
       //  owner (optional)
       string owner = O.Owner;
       if (!string.IsNullOrEmpty(owner))
