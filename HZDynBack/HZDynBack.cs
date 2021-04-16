@@ -224,9 +224,15 @@ namespace HunterZ.HZDynBack
   }
 
   // static class for managing background colors
-  public class BackgroundColorManager
+  public static class BackgroundColorManager
   {
     // private class API
+
+    // whether we've checked for ColorAliasMap yet
+    private static bool camChecked = false;
+
+    // reference to ColorAliasMap, if found
+    private static System.Collections.Generic.Dictionary<string, Color> camRef = null;
 
     // last recorded player depth
     private static int lastDepth = -1;
@@ -308,6 +314,24 @@ namespace HunterZ.HZDynBack
       ConsoleLib.Console.ColorUtility.ColorMap['k'] = color;
       ConsoleLib.Console.ColorUtility.ColorToCharMap.Add(color, 'k');
       ConsoleLib.Console.ColorUtility.usfColorMap[0] = color;
+      // check for additional ColorAliasMap dictionary added sometime between 2.0.201.78 release and 2.0.202.48 beta
+      //  ConsoleLib.Console.ColorUtility.ColorAliasMap[ConsoleLib.Console.ColorUtility.DEFAULT_BACKGROUND] = color;
+      //  only check for it the first time, because checking is apparently expensive
+      if (!camChecked)
+      {
+        var camField = typeof(ConsoleLib.Console.ColorUtility).GetField("ColorAliasMap");
+        if (camField != null)
+        {
+          camRef = camField.GetValue(null) as System.Collections.Generic.Dictionary<string, Color>;
+        }
+        camChecked = true;
+      }
+      //  now set it *if* we have a reference
+      if (camRef != null)
+      {
+        camRef["default background"] = color;
+      }
+      //  ColorAliasMap end
       // get reference to cell class' background color cache variable
       System.Reflection.FieldInfo ColorBlack =
         typeof(Cell).GetField(
@@ -471,8 +495,8 @@ namespace HunterZ.HZDynBack
   }
 
   // prefix the game summary/scores screen logic with a background color reset
-  // this is really only needed for transit to thinworld, as Patch2 already
-  //  handles regular game end conditions
+  // this is really only needed for transit to thinworld, as PatchPlayerTurn
+  //  already handles regular game end conditions
   [HarmonyPatch(typeof(XRL.Core.XRLCore), "BuildScore")]
   public class PatchBuildScore
   {
@@ -487,20 +511,17 @@ namespace HunterZ.HZDynBack
   }
 
   // set default background color on game end
-  [HarmonyPatch(typeof(XRL.Messages.MessageQueue), "QueueUnityMessage")]
-  public class PatchGameEnd
+  [HarmonyPatch(typeof(XRL.Core.XRLCore), "PlayerTurn")]
+  public class PatchPlayerTurn
   {
-    public static bool Prefix(string Message)
+    public static void Postfix()
     {
-      // set default background color if message is "!clear"
-      // this seems to get passed in on game end
-      if (Message == "!clear")
+      // set default background color if game is no longer running
+      bool? running = XRL.Core.XRLCore.Core?.Game?.Running;
+      if (running != null && !running.Value)
       {
         BackgroundColorManager.ResetBackgroundColor();
       }
-
-      // allow the original implementation to execute
-      return true;
     }
   }
 
