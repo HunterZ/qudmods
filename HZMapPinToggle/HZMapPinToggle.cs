@@ -23,13 +23,28 @@ namespace HunterZ.HZMapPinToggle
     // toggle action enum
     private enum ActE { OF, NA, ON };
 
+    // category toggle behavior enum
+    private enum CatE { ALL, NONE, SYNC };
+
+    private static CatE GetCategoryBehavior()
+    {
+      switch (XRL.UI.Options.GetOption("HZMapPinToggleOptionId", "AlwaysEnable"))
+      {
+        case "AlwaysEnable":   return CatE.ALL;
+        case "None":           return CatE.NONE;
+        case "SyncToContents": return CatE.SYNC;
+      }
+
+      return CatE.ALL;
+    }
+
     private static bool VisitedNote(Qud.API.JournalMapNote mapNote)
     {
-      System.Collections.Generic.Dictionary<string, bool> visitedZones = XRL.Core.XRLCore.Core?.Game?.ZoneManager?.VisitedZones;
+      System.Collections.Generic.Dictionary<string, long> visitedTime = XRL.Core.XRLCore.Core?.Game?.ZoneManager?.VisitedTime;
       return (
         mapNote != null &&
-        visitedZones != null &&
-        visitedZones.ContainsKey(mapNote.zoneid)
+        visitedTime != null &&
+        visitedTime.ContainsKey(mapNote.zoneid)
       );
     }
 
@@ -91,12 +106,13 @@ namespace HunterZ.HZMapPinToggle
         Intro:       "What action would you like to perform for " +
                       (catChoice == 0 ?
                         " all known categories" :
-                        categories[catChoice - 1]) +
+                        catArray[catChoice]) +
                       "?\n",
         AllowEscape: true
       );
       // abort if player escaped out
       if (actChoice < 0) { return base.FireEvent(E); }
+      // player has committed to a change
       // derive action flags from player choice
       //  -1 => disable
       //   0 => no change
@@ -120,7 +136,7 @@ namespace HunterZ.HZMapPinToggle
                 (Qud.API.JournalMapNote item) =>
                   item.revealed &&
                   (catChoice == 0 ||
-                   item.category == categories[catChoice - 1])
+                   item.category == catArray[catChoice])
                 )
               )
       {
@@ -137,6 +153,44 @@ namespace HunterZ.HZMapPinToggle
       if (z != null && z.IsWorldMap())
       {
         z.Activated();
+      }
+
+      // toggle categories per configured behavior
+      switch (GetCategoryBehavior())
+      {
+        case CatE.ALL:
+        {
+          // enable all categories since we're managing individual entries
+          // otherwise disabled categories may override visibility
+          foreach (string catString in categories)
+          {
+            Qud.API.JournalAPI.SetCategoryMapNoteToggle(catString, true);
+          }
+        }
+        break;
+
+        case CatE.NONE:
+        {
+          // do nothing
+        }
+        break;
+
+        case CatE.SYNC:
+        {
+          // add categories with tracked notes to hash set
+          System.Collections.Generic.HashSet<string> catSet = new System.Collections.Generic.HashSet<string>();
+          foreach (Qud.API.JournalMapNote mapNote in Qud.API.JournalAPI.GetMapNotes(
+                   (Qud.API.JournalMapNote item) => item.revealed && item.tracked))
+          {
+            catSet.Add(mapNote.category);
+          }
+          // now iterate over all categories and toggle based on set presence
+          foreach (string catString in categories)
+          {
+            Qud.API.JournalAPI.SetCategoryMapNoteToggle(catString, catSet.Contains(catString));
+          }
+        }
+        break;
       }
 
       return base.FireEvent(E);

@@ -1,0 +1,3 @@
+<options>
+  <option ID="HZMapPinToggleOptionId" DisplayText="HZMapPinToggle: Category visibility behavior" Category="HunterZ Mods" Type="Combo" Values="AlwaysEnable,None,SyncToContents" Default="AlwaysEnable"></option>
+</options>
