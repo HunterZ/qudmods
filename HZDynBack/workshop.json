@@ -1,1 +1,8 @@
-{"workshopId":2281679090,"Title":"Dynamic Background Color","Description":"Changes the play area's background color dynamically! On the surface, the color generally follows the status bar time indicator, gradually transitioning from one color to the next. Underground, the background becomes progressively darker the deeper you delve.\r\n\r\nWorks with new and existing saves.","Tags":"Script,UX,Background,Cosmetic","Visibility":"2","ImagePath":"preview.gif"}
+{
+  "WorkshopId": 2281679090,
+  "Title": "Dynamic Background Color",
+  "Description": "Changes the play area's background color dynamically! On the surface, the color generally follows the status bar time indicator, gradually transitioning from one color to the next. Underground, the background becomes progressively darker the deeper you delve.\r\n\r\nWorks with new and existing saves.",
+  "Tags": "Script,UX,Background,Cosmetic",
+  "Visibility": "2",
+  "ImagePath": "preview.gif"
+}

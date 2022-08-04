@@ -525,22 +525,6 @@ namespace HunterZ.HZDynBack
     }
   }
 
-  // stupid fix for loading old saves that used bad namespace
-  [HarmonyPatch(typeof(XRL.ModManager), "ResolveType")]
-  public class PatchResolveType
-  {
-    public static bool Prefix(ref string TypeID)
-    {
-      // if the OLD part class path turns up, replace it with the current one
-      if (TypeID == "XRL.World.HZDynBackPart")
-      {
-        TypeID = "HunterZ.HZDynBack.HZDynBackPart";
-      }
-      // allow original implementation to run
-      return true;
-    }
-  }
-
   // prefix zone render calls with background color update logic
   [HarmonyPatch(typeof(XRL.World.Zone), "Render", new System.Type[]
   {
