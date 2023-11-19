@@ -1,1 +1,8 @@
-{"workshopId":2274783502,"Title":"Show Owner & Faction","Description":"Adds basic owner, faction, and ID information to overlay and legacy tooltips when looking at things.\n\nWorks with new and existing saves, and is safe to remove at any time.","Tags":"Cosmetic,Script,UX,Faction","Visibility":"2","ImagePath":"preview.png"}
+{
+  "WorkshopId": 2274783502,
+  "Title": "Show Owner & Faction",
+  "Description": "Adds basic owner, faction, and ID information to overlay and legacy tooltips when looking at things.\n\nWorks with new and existing saves, and is safe to remove at any time.",
+  "Tags": "Cosmetic,Script,UX,Faction",
+  "Visibility": "2",
+  "ImagePath": "preview.png"
+}
