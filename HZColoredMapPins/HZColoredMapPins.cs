@@ -23,7 +23,7 @@ namespace HunterZ.HZColoredMapPins
   //
   // defaultString is meant to be used as a default case when no matching value
   //  is present
-  public class Colors
+  public static class Colors
   {
     public static readonly string defaultString = "Gkg";
 
@@ -47,7 +47,7 @@ namespace HunterZ.HZColoredMapPins
 
   // use a postfix to tack logic onto the end of TerrainNotes::HandleEvent()
   [HarmonyPatch(typeof(TerrainNotes), "HandleEvent", new Type[] { typeof(XRL.World.ZoneActivatedEvent) })]
-  public class Patch1
+  public static class Patch1
   {
     public static void Postfix(TerrainNotes __instance)
     {
@@ -67,9 +67,9 @@ namespace HunterZ.HZColoredMapPins
       foreach (DictionaryEntry entry in Colors.dict)
       {
         // skip this category if it's not applicable
-        if (__instance.notes.Any(
+        if (__instance.notes.Exists(
             (JournalMapNote item) =>
-            item.category == (string)entry.Key && item.tracked
+            item.Category == (string)entry.Key && item.Tracked
            ))
         {
           // map cell has an active note of this category
@@ -86,7 +86,7 @@ namespace HunterZ.HZColoredMapPins
 
   // use a prefix to replace the default TerrainNotes::Render() method
   [HarmonyPatch(typeof(TerrainNotes), "Render")]
-  public class Patch2
+  public static class Patch2
   {
     public static bool Prefix(TerrainNotes __instance, XRL.World.RenderEvent E, ref bool __result)
     {
@@ -114,7 +114,7 @@ namespace HunterZ.HZColoredMapPins
 
   // use a postfix to tack logic onto the end of JournalScreen::UpdateEntries()
   [HarmonyPatch(typeof(JournalScreen), "UpdateEntries")]
-  public class Patch3
+  public static class Patch3
   {
     public static void Postfix(JournalScreen __instance, ref List<string> ___displayLines, string selectedTab)
     {

@@ -1,3 +1,3 @@
 <options>
-  <option ID="HZShowOwnerOptionId" DisplayText="HZShowOwner: Show object blueprint and ID in overlay tooltip" Category="HunterZ Mods" Type="Checkbox" Default="No"></option>
+  <option ID="HZShowOwnerOptionId" DisplayText="HZShowOwner: Show object blueprint and ID in tooltip" Category="HunterZ Mods" Type="Checkbox" Default="No"></option>
 </options>

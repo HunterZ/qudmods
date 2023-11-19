@@ -2,7 +2,7 @@
 	"title": "{{rainbow|Colored Map Pins}}",
 	"description": "Overwhelmed by highlighted locations on the world map? Wish they didn't all look green? This mod is for you!\n\nMakes the following changes to the map location notes system:\n- cells with active notes are now colored by highest-priority enabled category\n- categories on the location tab of the journal screen are now colored similarly, to provide a reference/legend\n- highlighted cells blink at a slower rate\n\nCompatibility:\n- Supports the \"Legendary Creatures\" category added by QudUX.\n- Works with new and existing saves, and is safe to remove at any time.\n\nKnown issues:\n- Saving/loading while on the world map may leave it in a funky visual state until you do something that causes it to fully refresh.",
   "Tags": "Map,Cosmetic,UX,Script",
-	"version": "1.3",
+	"version": "1.4",
 	"author": "HunterZ",
 	"previewImage": "preview.png"
 }

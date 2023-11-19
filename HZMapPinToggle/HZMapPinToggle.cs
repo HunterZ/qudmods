@@ -21,21 +21,21 @@ namespace HunterZ.HZMapPinToggle
     };
 
     // toggle action enum
-    private enum ActE { OF, NA, ON };
+    private enum TrackAction { OF, NA, ON };
 
     // category toggle behavior enum
-    private enum CatE { ALL, NONE, SYNC };
+    private enum CategoryBehavior { ALL, NONE, SYNC };
 
-    private static CatE GetCategoryBehavior()
+    private static CategoryBehavior GetCategoryBehavior()
     {
       switch (XRL.UI.Options.GetOption("HZMapPinToggleOptionId", "AlwaysEnable"))
       {
-        case "AlwaysEnable":   return CatE.ALL;
-        case "None":           return CatE.NONE;
-        case "SyncToContents": return CatE.SYNC;
+        case "AlwaysEnable":   return CategoryBehavior.ALL;
+        case "None":           return CategoryBehavior.NONE;
+        case "SyncToContents": return CategoryBehavior.SYNC;
       }
 
-      return CatE.ALL;
+      return CategoryBehavior.ALL;
     }
 
     private static bool VisitedNote(Qud.API.JournalMapNote mapNote)
@@ -44,8 +44,48 @@ namespace HunterZ.HZMapPinToggle
       return (
         mapNote != null &&
         visitedTime != null &&
-        visitedTime.ContainsKey(mapNote.zoneid)
+        visitedTime.ContainsKey(mapNote.ZoneID)
       );
+    }
+
+    private static (TrackAction, TrackAction) GetActions(int actChoice)
+    {
+      return actChoice switch
+      {
+        0 => (TrackAction.OF, TrackAction.OF),
+        1 => (TrackAction.OF, TrackAction.NA),
+        2 => (TrackAction.OF, TrackAction.ON),
+        3 => (TrackAction.NA, TrackAction.OF),
+        4 => (TrackAction.NA, TrackAction.ON),
+        5 => (TrackAction.ON, TrackAction.OF),
+        6 => (TrackAction.ON, TrackAction.NA),
+        7 => (TrackAction.ON, TrackAction.ON),
+        _ => (TrackAction.NA, TrackAction.NA),
+      };
+    }
+
+    private static void ApplyActions(int actChoice, int catChoice, string catName)
+    {
+      // derive action flags from player choice
+      var (actUnv, actVis) = GetActions(actChoice);
+      // iterate over all revealed map notes
+      foreach (Qud.API.JournalMapNote mapNote in
+               Qud.API.JournalAPI.GetMapNotes(
+                (Qud.API.JournalMapNote item) =>
+                  item.Revealed &&
+                  (catChoice == 0 ||
+                   item.Category == catName)
+                )
+              )
+      {
+        // apply chosen action(s)
+        switch (VisitedNote(mapNote) ? actVis : actUnv)
+        {
+          case TrackAction.OF: mapNote.Tracked = false; break;
+          case TrackAction.NA: /* do nothing */         break;
+          case TrackAction.ON: mapNote.Tracked = true;  break;
+        }
+      }
     }
 
     public static void AddAbility(XRL.World.GameObject player)
@@ -68,9 +108,9 @@ namespace HunterZ.HZMapPinToggle
     }
 
     // register for custom event callbacks
-    public override void Register(XRL.World.GameObject obj)
+    public override void Register(XRL.World.GameObject Object)
     {
-      obj.RegisterPartEvent(this, EVENT_NAME);
+      Object.RegisterPartEvent(this, EVENT_NAME);
     }
 
     public override bool FireEvent(XRL.World.Event E)
@@ -99,55 +139,21 @@ namespace HunterZ.HZMapPinToggle
       );
       // abort if player escaped out
       if (catChoice < 0) { return base.FireEvent(E); }
+      string catName = catArray[catChoice];
       // query the user for toggle action choice
       int actChoice = XRL.UI.Popup.ShowOptionList(
         Title:       "Map Pin Toggle - Action",
         Options:     TOGGLE_ACTIONS,
         Intro:       "What action would you like to perform for " +
-                      (catChoice == 0 ?
-                        " all known categories" :
-                        catArray[catChoice]) +
+                      (catChoice == 0 ? " all known categories" : catName) +
                       "?\n",
         AllowEscape: true
       );
       // abort if player escaped out
       if (actChoice < 0) { return base.FireEvent(E); }
-      // player has committed to a change
-      // derive action flags from player choice
-      //  -1 => disable
-      //   0 => no change
-      //   1 => enable
-      ActE actUnv = ActE.NA;
-      ActE actVis = ActE.NA;
-      switch (actChoice)
-      {
-        case 0: { actUnv = ActE.OF; actVis = ActE.OF; } break;
-        case 1: { actUnv = ActE.OF; actVis = ActE.NA; } break;
-        case 2: { actUnv = ActE.OF; actVis = ActE.ON; } break;
-        case 3: { actUnv = ActE.NA; actVis = ActE.OF; } break;
-        case 4: { actUnv = ActE.NA; actVis = ActE.ON; } break;
-        case 5: { actUnv = ActE.ON; actVis = ActE.OF; } break;
-        case 6: { actUnv = ActE.ON; actVis = ActE.NA; } break;
-        case 7: { actUnv = ActE.ON; actVis = ActE.ON; } break;
-      }
-      // iterate over all revealed map notes
-      foreach (Qud.API.JournalMapNote mapNote in
-               Qud.API.JournalAPI.GetMapNotes(
-                (Qud.API.JournalMapNote item) =>
-                  item.revealed &&
-                  (catChoice == 0 ||
-                   item.category == catArray[catChoice])
-                )
-              )
-      {
-        // apply chosen action(s)
-        switch (VisitedNote(mapNote) ? actVis : actUnv)
-        {
-          case ActE.OF: mapNote.tracked = false; break;
-          case ActE.NA: /* do nothing */         break;
-          case ActE.ON: mapNote.tracked = true;  break;
-        }
-      }
+
+      // player has committed to a change - apply it
+      ApplyActions(actChoice, catChoice, catName);
 
       XRL.World.Zone z = XRL.Core.XRLCore.Core?.Game?.Player?.Body?.CurrentCell?.ParentZone;
       if (z != null && z.IsWorldMap())
@@ -158,7 +164,7 @@ namespace HunterZ.HZMapPinToggle
       // toggle categories per configured behavior
       switch (GetCategoryBehavior())
       {
-        case CatE.ALL:
+        case CategoryBehavior.ALL:
         {
           // enable all categories since we're managing individual entries
           // otherwise disabled categories may override visibility
@@ -169,20 +175,20 @@ namespace HunterZ.HZMapPinToggle
         }
         break;
 
-        case CatE.NONE:
+        case CategoryBehavior.NONE:
         {
           // do nothing
         }
         break;
 
-        case CatE.SYNC:
+        case CategoryBehavior.SYNC:
         {
           // add categories with tracked notes to hash set
           System.Collections.Generic.HashSet<string> catSet = new System.Collections.Generic.HashSet<string>();
           foreach (Qud.API.JournalMapNote mapNote in Qud.API.JournalAPI.GetMapNotes(
-                   (Qud.API.JournalMapNote item) => item.revealed && item.tracked))
+                   (Qud.API.JournalMapNote item) => item.Revealed && item.Tracked))
           {
-            catSet.Add(mapNote.category);
+            catSet.Add(mapNote.Category);
           }
           // now iterate over all categories and toggle based on set presence
           foreach (string catString in categories)
@@ -213,7 +219,7 @@ namespace HunterZ.HZMapPinToggle
 
   // game load handler class to add "part" to player on save load
   [XRL.HasCallAfterGameLoaded]
-  public class GameLoadHander
+  public static class GameLoadHander
   {
     // called whenever loading a save game
     [XRL.CallAfterGameLoaded]

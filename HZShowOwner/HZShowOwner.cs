@@ -1,75 +1,58 @@
 using HarmonyLib;
 
+using System.Text;
+using XRL.UI;
+using XRL.World.Parts;
+
 namespace HunterZ.HZShowOwner
 {
-  [HarmonyPatch(typeof(XRL.UI.Look), "GenerateTooltipContent")]
-  public class GenerateTooltipContentPatcher
+  [HarmonyPatch(typeof(Description), nameof(Description.GetLongDescription))]
+  static class Patch1
   {
-    public static bool Prefix(ref string __result, XRL.World.GameObject O)
+    public static void Postfix(Description __instance, StringBuilder SB)
     {
-      XRL.World.Parts.Description part = O.GetPart<XRL.World.Parts.Description>();
-      System.Text.StringBuilder stringBuilder = new System.Text.StringBuilder();
-      // name line
-      //  name
-      _ = stringBuilder.Append(O.DisplayName);
-      //  id (optional)
-      if (XRL.UI.Options.GetOption("HZShowOwnerOptionId").EqualsNoCase("Yes"))
+      // note: have to use '\n' instead of AppendLine() because the latter
+      //  results in music notes appearing in non-overlay mode for some reason
+      SB.Append("\n");
+      XRL.World.GameObject go = __instance.ParentObject;
+      // faction (optional)
+      string factionKey = go.GetPrimaryFaction();
+      if (!string.IsNullOrEmpty(factionKey))
       {
-        _ = stringBuilder.Append(" {").Append(O.Blueprint).Append("#").Append(O.id).Append("}");
-      }
-      //  owner (optional)
-      string owner = O.Owner;
-      if (!string.IsNullOrEmpty(owner))
-      {
-        _ = stringBuilder.Append(" (").Append(owner).Append(")");
-      }
-      _ = stringBuilder.AppendLine();
-      // reaction and/or faction line (optional)
-      string feelingDescription = part.GetFeelingDescription();
-      string primaryFaction = O.GetPrimaryFaction();
-      string faction = (
-          string.IsNullOrEmpty(primaryFaction) ?
-            null :
-            XRL.World.Factions.get(primaryFaction).DisplayName
-      );
-      if (!string.IsNullOrEmpty(feelingDescription) ||
-          !string.IsNullOrEmpty(faction))
-      {
-        // reaction (optional)
-        if (!string.IsNullOrEmpty(feelingDescription))
+        SB.Append("\nFaction: " + factionKey);
+        XRL.World.Faction faction = XRL.World.Factions.getIfExists(factionKey);
+        if (faction != null)
         {
-          _ = stringBuilder.Append(feelingDescription);
-          // add a space separator before faction if both are present
-          if (!string.IsNullOrEmpty(faction))
+          SB.Append(" \"" + faction.DisplayName + "\"");
+          XRL.World.Reputation reputation = XRL.Core.XRLCore.Core?.Game?.PlayerReputation;
+          if (reputation != null)
           {
-            _ = stringBuilder.Append(" ");
+            int factionValue = reputation.get(faction);
+            SB.Append(" (" + factionValue.ToString() + ")");
           }
         }
-        // faction (optional)
-        if (!string.IsNullOrEmpty(faction))
-        {
-          int factionValue = XRL.Core.XRLCore.Core.Game.PlayerReputation.get(primaryFaction);
-          string factionValueString = "{{" + XRL.World.Reputation.getColor(factionValue) + "|" + factionValue.ToString() + "}}";
-          _ = stringBuilder.Append("(").Append(factionValueString).Append(" ").Append(faction).Append(")");
-        }
-        _ = stringBuilder.AppendLine();
       }
-      // assessment line
-      //  health
-      _ = stringBuilder.Append(XRL.Rules.Strings.WoundLevel(O));
-      //  difficulty (optional)
-      string difficultyDescription = part.GetDifficultyDescription();
-      if (!string.IsNullOrEmpty(difficultyDescription))
+      // owner (optional)
+      string owner = go.Owner;
+      if (!string.IsNullOrEmpty(owner))
       {
-        _ = stringBuilder.Append(", ").Append(difficultyDescription);
+        SB.Append("\nOwner: ").Append(owner);
       }
-      _ = stringBuilder.AppendLine();
-      // long description line(s)
-      _ = stringBuilder.AppendLine();
-      part.GetLongDescription(stringBuilder);
-      // stringBuilder.AppendLine();
-      __result = ConsoleLib.Console.Markup.Transform(stringBuilder.ToString());
-      return false;
+      // id (optional)
+      if (Options.GetOption("HZShowOwnerOptionId").EqualsNoCase("Yes"))
+      {
+        string bp = go.Blueprint;
+        if (string.IsNullOrEmpty(bp))
+        {
+          bp = "<null>";
+        }
+        string id = go.ID;
+        if (string.IsNullOrEmpty(id))
+        {
+          id = "<null>";
+        }
+        SB.Append("\nBPID: ").Append(bp).Append("#").Append(id);
+      }
     }
   }
 }

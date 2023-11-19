@@ -5,7 +5,7 @@ using XRL.World;   // Calendar, Cell, etc.
 namespace HunterZ.HZDynBack
 {
   // general public color constants and stateless utilities
-  public class HZColorUtil
+  public static class HZColorUtil
   {
     // default in vanilla display.txt is 15,59,58
     public static readonly Color defaultColor = new Color(0.059f, 0.231f, 0.227f, 1f);
@@ -37,7 +37,7 @@ namespace HunterZ.HZDynBack
   }
 
   // static class for managing sundial (surface) colors
-  public class SundialColorManager
+  public static class SundialColorManager
   {
     // private class API
 
@@ -228,11 +228,9 @@ namespace HunterZ.HZDynBack
   {
     // private class API
 
-    // whether we've checked for ColorAliasMap yet
-    private static bool camChecked = false;
-
-    // reference to ColorAliasMap, if found
-    private static System.Collections.Generic.Dictionary<string, Color> camRef = null;
+    // reference to property used by the game to determine the default
+    //  background color to be painted
+    private static Traverse defaultBackground = null;
 
     // last recorded player depth
     private static int lastDepth = -1;
@@ -305,40 +303,12 @@ namespace HunterZ.HZDynBack
       {
         lastFinalColor = color;
       }
-      // remove old ColorToCharMap entry
-      // we have to maintain this reverse mapping, or else the game crashes on thinworld entry
-      _ = ConsoleLib.Console.ColorUtility.ColorToCharMap.Remove(
-        ConsoleLib.Console.ColorUtility.ColorMap['k']
-      );
-      // add new color to all data structures
-      ConsoleLib.Console.ColorUtility.ColorMap['k'] = color;
-      ConsoleLib.Console.ColorUtility.ColorToCharMap.Add(color, 'k');
-      ConsoleLib.Console.ColorUtility.usfColorMap[0] = color;
-      // check for additional ColorAliasMap dictionary added sometime between 2.0.201.78 release and 2.0.202.48 beta
-      //  ConsoleLib.Console.ColorUtility.ColorAliasMap[ConsoleLib.Console.ColorUtility.DEFAULT_BACKGROUND] = color;
-      //  only check for it the first time, because checking is apparently expensive
-      if (!camChecked)
+
+      if (defaultBackground == null && ConsoleLib.Console.ColorUtility.Colors != null)
       {
-        var camField = typeof(ConsoleLib.Console.ColorUtility).GetField("ColorAliasMap");
-        if (camField != null)
-        {
-          camRef = camField.GetValue(null) as System.Collections.Generic.Dictionary<string, Color>;
-        }
-        camChecked = true;
+        defaultBackground = Traverse.Create(ConsoleLib.Console.ColorUtility.Colors)?.Property("DefaultBackground");
       }
-      //  now set it *if* we have a reference
-      if (camRef != null)
-      {
-        camRef["default background"] = color;
-      }
-      //  ColorAliasMap end
-      // get reference to cell class' background color cache variable
-      System.Reflection.FieldInfo ColorBlack =
-        typeof(Cell).GetField(
-          "ColorBlack",
-          System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic
-        );
-      if (ColorBlack != null) { ColorBlack.SetValue(null, color); }
+      defaultBackground?.SetValue(color);
     }
 
     // set targetColor to desired background color based on current game state
@@ -487,18 +457,11 @@ namespace HunterZ.HZDynBack
     }
   }
 
-  // custom player object "part"
-  // this is now vestigial, existing only for compatibility with old saves
-  [System.Serializable]
-  public class HZDynBackPart : IPart
-  {
-  }
-
   // prefix the game summary/scores screen logic with a background color reset
   // this is really only needed for transit to thinworld, as PatchPlayerTurn
   //  already handles regular game end conditions
-  [HarmonyPatch(typeof(XRL.Core.XRLCore), "BuildScore")]
-  public class PatchBuildScore
+  [HarmonyPatch(typeof(XRL.Core.XRLCore), nameof(XRL.Core.XRLCore.BuildScore))]
+  public static class PatchBuildScore
   {
     public static bool Prefix()
     {
@@ -511,8 +474,8 @@ namespace HunterZ.HZDynBack
   }
 
   // set default background color on game end
-  [HarmonyPatch(typeof(XRL.Core.XRLCore), "PlayerTurn")]
-  public class PatchPlayerTurn
+  [HarmonyPatch(typeof(XRL.Core.XRLCore), nameof(XRL.Core.XRLCore.PlayerTurn))]
+  public static class PatchPlayerTurn
   {
     public static void Postfix()
     {
@@ -526,17 +489,15 @@ namespace HunterZ.HZDynBack
   }
 
   // prefix zone render calls with background color update logic
-  [HarmonyPatch(typeof(XRL.World.Zone), "Render", new System.Type[]
+  [HarmonyPatch(typeof(Zone), nameof(Zone.Render), new System.Type[]
   {
     typeof(ConsoleLib.Console.ScreenBuffer),
     typeof(int),
     typeof(int),
     typeof(int),
-    typeof(int),
-    typeof(int),
     typeof(int)
   })]
-  public class PatchZoneRender
+  public static class PatchZoneRender
   {
     public static bool Prefix()
     {
