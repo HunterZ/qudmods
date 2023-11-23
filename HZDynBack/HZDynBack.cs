@@ -1,6 +1,7 @@
 using HarmonyLib;
 using UnityEngine; // Color, Mathf
 using XRL.World;   // Calendar, Cell, etc.
+using ColorUtility = ConsoleLib.Console.ColorUtility;
 
 namespace HunterZ.HZDynBack
 {
@@ -228,8 +229,10 @@ namespace HunterZ.HZDynBack
   {
     // private class API
 
-    // reference to property used by the game to determine the default
-    //  background color to be painted
+    // cache Harmony traverse objects for efficiency
+
+    private static Traverse colorBlack = null;
+    private static Traverse darkBlack = null;
     private static Traverse defaultBackground = null;
 
     // last recorded player depth
@@ -280,8 +283,8 @@ namespace HunterZ.HZDynBack
     {
       get
       {
-        int? depthField = XRL.Core.XRLCore.Core?.Game?.Player?.Body?.CurrentZone?.Z;
-        return depthField == null ? 10 : depthField.Value;
+        var depthField = XRL.Core.XRLCore.Core?.Game?.Player?.Body?.CurrentZone?.Z;
+        return depthField.HasValue ? depthField.Value : 10;
       }
     }
 
@@ -290,8 +293,8 @@ namespace HunterZ.HZDynBack
     {
       get
       {
-        bool? inJoppaWorld = XRL.Core.XRLCore.Core?.Game?.Player?.Body?.CurrentCell?.ParentZone?._ZoneID?.StartsWith("Joppa");
-        return inJoppaWorld != null && inJoppaWorld.Value;
+        var inJoppaWorld = XRL.Core.XRLCore.Core?.Game?.Player?.Body?.CurrentCell?.ParentZone?._ZoneID?.StartsWith("Joppa");
+        return inJoppaWorld.HasValue && inJoppaWorld.Value;
       }
     }
 
@@ -304,10 +307,20 @@ namespace HunterZ.HZDynBack
         lastFinalColor = color;
       }
 
-      if (defaultBackground == null && ConsoleLib.Console.ColorUtility.Colors != null)
-      {
-        defaultBackground = Traverse.Create(ConsoleLib.Console.ColorUtility.Colors)?.Property("DefaultBackground");
-      }
+      ColorUtility.ColorToCharMap?.Remove(
+        ColorUtility.ColorMap['k']
+      );
+      ColorUtility.ColorMap['k'] = color;
+      ColorUtility.ColorToCharMap?.Add(color, 'k');
+      ColorUtility.usfColorMap[0] = color;
+
+      colorBlack ??= Traverse.Create(typeof(Cell))?.Property("ColorBlack");
+      colorBlack?.SetValue(color);
+
+      darkBlack ??= Traverse.Create(ColorUtility.Colors)?.Property("DarkBlack");
+      darkBlack?.SetValue(color);
+
+      defaultBackground ??= Traverse.Create(ColorUtility.Colors)?.Property("DefaultBackground");
       defaultBackground?.SetValue(color);
     }
 
