@@ -1,7 +1,7 @@
+using ColorUtility = ConsoleLib.Console.ColorUtility;
 using HarmonyLib;
 using UnityEngine; // Color, Mathf
 using XRL.World;   // Calendar, Cell, etc.
-using ColorUtility = ConsoleLib.Console.ColorUtility;
 
 namespace HunterZ.HZDynBack
 {
@@ -307,12 +307,25 @@ namespace HunterZ.HZDynBack
         lastFinalColor = color;
       }
 
-      ColorUtility.ColorToCharMap?.Remove(
-        ColorUtility.ColorMap['k']
-      );
-      ColorUtility.ColorMap['k'] = color;
-      ColorUtility.ColorToCharMap?.Add(color, 'k');
-      ColorUtility.usfColorMap[0] = color;
+      if (!ColorUtility.ColorToCharMap.IsNullOrEmpty())
+      {
+        ColorUtility.ColorToCharMap.Remove(
+          ColorUtility.ColorMap['k']
+        );
+        ColorUtility.ColorToCharMap.Add(color, 'k');
+      }
+      if (!ColorUtility.ColorMap.IsNullOrEmpty())
+      {
+        ColorUtility.ColorMap['k'] = color;
+      }
+      if (!ColorUtility.ColorAliasMap.IsNullOrEmpty())
+      {
+        ColorUtility.ColorAliasMap[ColorUtility.DEFAULT_BACKGROUND] = color;
+      }
+      if (!ColorUtility.usfColorMap.IsNullOrEmpty())
+      {
+        ColorUtility.usfColorMap[0] = color;
+      }
 
       colorBlack ??= Traverse.Create(typeof(Cell))?.Property("ColorBlack");
       colorBlack?.SetValue(color);
