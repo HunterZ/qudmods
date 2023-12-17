@@ -9,11 +9,13 @@ namespace HunterZ.HZDynBack
   public static class HZColorUtil
   {
     // default in vanilla display.txt is 15,59,58
-    public static readonly Color defaultColor = new Color(0.059f, 0.231f, 0.227f, 1f);
+    public static Color defaultColor; // new Color(0.059f, 0.231f, 0.227f, 1f);
 
     // brightness of default color
     // this MUST be defined after defaultColor, or else it will end up as zero!
-    public static readonly float defaultColorBrightness = GetBrightness(defaultColor);
+    public static float defaultColorBrightness; // GetBrightness(defaultColor);
+
+    public static bool defaultColorSet = false;
 
     // return brightness (V component of HSV) of given RGB color
     public static float GetBrightness(Color c)
@@ -34,6 +36,13 @@ namespace HunterZ.HZDynBack
     {
       Color.RGBToHSV(c, out float h, out float s, out _);
       return Color.HSVToRGB(h, s, b);
+    }
+
+    public static void SetDefaultColor(Color c)
+    {
+      defaultColor = c;
+      defaultColorBrightness = GetBrightness(c);
+      defaultColorSet = true;
     }
   }
 
@@ -83,7 +92,7 @@ namespace HunterZ.HZDynBack
       HZColorUtil.OverrideBrightness(
         new Color(0.000f, 0.173f, 0.161f, 1f), //   0  44  41
         0.750f * HZColorUtil.defaultColorBrightness),
-      // 9 => late (turns 150 to 324, duration 175)
+      // 9 => latenight (turns 150 to 324, duration 175)
       HZColorUtil.OverrideBrightness(
         new Color(0.000f, 0.173f, 0.161f, 1f), //   0  44  41
         0.750f * HZColorUtil.defaultColorBrightness)
@@ -298,6 +307,19 @@ namespace HunterZ.HZDynBack
       }
     }
 
+    // cache default background color if both needed and available
+    // return whether cache is populated (equivalent to
+    //  HZColorUtil.defaultColorSet for convenience)
+    private static bool CheckDefaultBackgroundColor()
+    {
+      if (HZColorUtil.defaultColorSet) { return true; }
+      if (ColorUtility.Colors?.DefaultBackground == null) { return false; }
+
+      HZColorUtil.SetDefaultColor(ColorUtility.Colors.DefaultBackground);
+      lastFinalColor = targetColor = transitionColor = HZColorUtil.defaultColor;
+      return true;
+    }
+
     // set game background color to specified value
     private static void SetBackgroundColor(Color color, bool finalColor)
     {
@@ -342,6 +364,10 @@ namespace HunterZ.HZDynBack
     // returns whether targetColor actually changed
     private static bool UpdateTargetColor()
     {
+      // cache default background color if we haven't yet
+      // return false if this fails
+      if (!CheckDefaultBackgroundColor()) { return false; }
+
       // optimization: check whether something significant happened
       int  depth        = PlayerDepth;
       bool inJoppaWorld = PlayerInJoppaWorld;
@@ -401,6 +427,11 @@ namespace HunterZ.HZDynBack
     public static void ResetBackgroundColor()
     {
       stopwatch.Reset();
+
+      // cache default background color if we haven't yet
+      // do nothing if this fails, as we have nothing to reset to
+      if (!CheckDefaultBackgroundColor()) { return; }
+
       targetColor = HZColorUtil.defaultColor;
       SetBackgroundColor(targetColor, true);
     }
@@ -409,32 +440,8 @@ namespace HunterZ.HZDynBack
     // implements smooth real-time transitions between colors
     public static void Update()
     {
-      // handle case that a transition is in progress
-      if (stopwatch.IsRunning)
-      {
-        long deltaMs = stopwatch.ElapsedMilliseconds - stopwatchLastMilliseconds;
-        // protect from large jumps by only updating times for small ones
-        if (deltaMs < 100)
-        {
-          transitionElapsedMilliseconds += deltaMs;
-        }
-        stopwatchLastMilliseconds = stopwatch.ElapsedMilliseconds;
-        // if total time has elapsed, stop and finalize the target color
-        if (transitionElapsedMilliseconds >= transitionTotalMilliseconds)
-        {
-          stopwatch.Reset();
-          SetBackgroundColor(targetColor, true);
-        }
-        else
-        {
-          // stopwatch not elapsed; interpolate non-final color based on time
-          transitionColor = Color.Lerp(
-            lastFinalColor, targetColor,
-            (float)transitionElapsedMilliseconds / transitionTotalMilliseconds
-          );
-          SetBackgroundColor(transitionColor, false);
-        }
-      }
+      // don't do anything if it's too early to get default background color
+      if (!CheckDefaultBackgroundColor()) { return; }
 
       // update target color based on game state
       bool targetColorChanged = UpdateTargetColor();
@@ -455,31 +462,60 @@ namespace HunterZ.HZDynBack
       }
 
       // doing smooth transitions
-      if (stopwatch.IsRunning)
+      if (!targetColorChanged && !stopwatch.IsRunning)
       {
-        // transition already in progress
-        if (targetColorChanged)
-        {
-          // target changed
-          // lock in current transition color as new starting point
-          SetBackgroundColor(transitionColor, true);
-          // restart timer
-          stopwatch.Reset();
-          stopwatch.Start();
-          stopwatchLastMilliseconds = 0;
-          transitionElapsedMilliseconds = 0;
-        }
-        // else allow transition to continue as-is
+        // no transition in progress and no change; abort
+        return;
       }
-      else if (targetColor != lastFinalColor)
+      // (re)start transition timer if we're not at desired color
+      if (
+        targetColorChanged ||
+        (!stopwatch.IsRunning && targetColor != lastFinalColor)
+      )
       {
-        // we're not at target color, but transition not started
-        // start timer
         stopwatch.Reset();
         stopwatch.Start();
         stopwatchLastMilliseconds = 0;
         transitionElapsedMilliseconds = 0;
+        // start at the last transition color in case an in-progress transition
+        //  was interrupted by a target color change
+        // this will have no effect if the previous transition completed, as
+        //  transitionColor converges to lastFinalColor
       }
+
+      // at this point, a transition is guaranteed to be in progress
+      long deltaMs = stopwatch.ElapsedMilliseconds - stopwatchLastMilliseconds;
+      // protect from large jumps by only updating times for small ones
+      if (deltaMs < 100)
+      {
+        transitionElapsedMilliseconds += deltaMs;
+      }
+      stopwatchLastMilliseconds = stopwatch.ElapsedMilliseconds;
+
+      // if total time has elapsed, stop and finalize the target color
+      bool finalColor;
+      if (transitionElapsedMilliseconds >= transitionTotalMilliseconds)
+      {
+        stopwatch.Reset();
+        transitionColor = targetColor;
+        finalColor = true;
+      }
+      else if (targetColorChanged)
+      {
+        // target color changed during transition; stamp current transition
+        //  color as a new starting point
+        finalColor = true;
+      }
+      else
+      {
+        // normal transition update; interpolate non-final color based on time
+        transitionColor = Color.Lerp(
+          lastFinalColor, targetColor,
+          (float)transitionElapsedMilliseconds / transitionTotalMilliseconds
+        );
+        finalColor = false;
+      }
+      SetBackgroundColor(transitionColor, finalColor);
     }
   }
 

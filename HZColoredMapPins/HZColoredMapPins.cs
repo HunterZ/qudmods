@@ -4,7 +4,6 @@ using System;                         // DateTime, Type
 using System.Collections;             // DictionaryEntry
 using System.Collections.Generic;     // List
 using System.Collections.Specialized; // OrderedDictionary
-using System.Linq;                    // Any()
 using XRL.UI;                         // JournalScreen
 using XRL.World.Parts;                // TerrainNotes
 

@@ -6,7 +6,10 @@ using XRL.World.Parts;
 
 namespace HunterZ.HZShowOwner
 {
-  [HarmonyPatch(typeof(Description), nameof(Description.GetLongDescription))]
+  [HarmonyPatch(typeof(Description), nameof(Description.GetLongDescription), new System.Type[]
+  {
+    typeof(StringBuilder)
+  })]
   static class Patch1
   {
     public static void Postfix(Description __instance, StringBuilder SB)
@@ -20,14 +23,14 @@ namespace HunterZ.HZShowOwner
       if (!string.IsNullOrEmpty(factionKey))
       {
         SB.Append("\nFaction: " + factionKey);
-        XRL.World.Faction faction = XRL.World.Factions.getIfExists(factionKey);
+        XRL.World.Faction faction = XRL.World.Factions.GetIfExists(factionKey);
         if (faction != null)
         {
           SB.Append(" \"" + faction.DisplayName + "\"");
           XRL.World.Reputation reputation = XRL.Core.XRLCore.Core?.Game?.PlayerReputation;
           if (reputation != null)
           {
-            int factionValue = reputation.get(faction);
+            int factionValue = reputation.Get(faction);
             SB.Append(" (" + factionValue.ToString() + ")");
           }
         }
