@@ -2,7 +2,7 @@
 	"title": "{{G|Map Pin Bulk Toggle}}",
 	"description": "Adds an activated ability that pops up a menu allowing you to toggle an entire map location category's (or all categories') map note pins based on various factors.\n\nThe primary use case for this mod is to quickly set the visibility of all map pins based on whether or not the player has visited each pin's corresponding location. For convenience, however, I have included the ability to toggle pins for every combination of on/off/neither and unvisited/unvisited status.\n\nUsage: Open the \"Use Ability\" menu ('A' key by default), highlight the \"Toggle Map Pins\" ability, press the spacebar, then follow the prompts. Alternatively, press enter to bind a hotkey for quicker access.\n\nIf used while on the world map, changes are immediately visible.\n\nOptions menu setting provided for category toggle behavior.\n\nSupports new and existing saves.",
 	"Tags": "Map,World,Script,UX",
-	"version": "1.5",
+	"version": "1.6",
 	"author": "HunterZ",
 	"previewImage": "preview.png"
 }
