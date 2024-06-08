@@ -22,9 +22,6 @@ namespace HunterZ.HZMapPinToggle
       "Unvisited {{G| ON}}, visited {{G| ON}} (ALL on)",            // 7
     };
 
-    // reference to AbilityManager.WorldMapAllowed list
-    private static HarmonyLib.Traverse WorldMapAllowed = null;
-
     // toggle action enum
     private enum TrackAction { OF, NA, ON };
 
@@ -96,55 +93,34 @@ namespace HunterZ.HZMapPinToggle
     public static void AddAbility(XRL.World.GameObject player)
     {
       // abort if ActivatedAbilities part is not found
-      if (!(player.GetPart("ActivatedAbilities") is XRL.World.Parts.ActivatedAbilities aaPart)) { return; }
-      // abort if custom ability already exists
+      if (player.GetPart("ActivatedAbilities") is not XRL.World.Parts.ActivatedAbilities aaPart) { return; }
+      // check whether ability already exists
       XRL.World.Parts.ActivatedAbilityEntry ability = aaPart.GetAbilityByCommand(EVENT_NAME);
-      if (ability != null) { return; }
-
-      // add custom ability
-      /* System.Guid abilityId = */
-      _ = aaPart.AddAbility(
-        Name:        "Toggle Map Pins",
-        Command:     EVENT_NAME,
-        Class:       "Location Management",
-        Description: "Open menu of map pin bulk toggle functions",
-        Silent:      true
-      );
-    }
-
-    // hack for 9 Feb 2024 update that blocks abilities on the world map
-    public static void EnableAbility()
-    {
-      // first, set up a Harmony reference to the list field (done once)
-      WorldMapAllowed ??=
-        HarmonyLib.Traverse.Create(typeof(XRL.UI.AbilityManager))?.Field("WorldMapAllowed");
-      // abort if we didn't find the field
-      if (null == WorldMapAllowed) { return; }
-      // extract the current list from the field (if any)
-      List<string> list = WorldMapAllowed.GetValue<List<string>>();
-      // create a new list if there isn't one (this shouldn't happen)
-      bool newList = false;
-      if (null == list)
+      if (ability == null)
       {
-        newList = true;
-        list = new List<string>();
+        // ability does not yet exist; add it
+        _ = aaPart.AddAbility(
+          Name:             "Toggle Map Pins",
+          Command:          EVENT_NAME,
+          Class:            "Location Management",
+          Description:      "Open menu of map pin bulk toggle functions",
+          IsWorldMapUsable: true,
+          Silent:           true
+        );
       }
-      // add ourself to the allow list if we're not already there
-      if (!list.Contains(EVENT_NAME))
+      else
       {
-        list.Add(EVENT_NAME);
-        // if it's a new list, store it (this shouldn't happen)
-        if (newList)
-        {
-          WorldMapAllowed.SetValue(list);
-        }
+        // ability already exists; make sure it's usable on world map (mainly in
+        //  case of old save - can probably be removed in some future version)
+        ability.IsWorldMapUsable = true;
       }
     }
 
     // register for custom event callbacks
-    public override void Register(XRL.World.GameObject Object)
+    public override void Register(XRL.World.GameObject Object, XRL.IEventRegistrar Registrar)
     {
-      Object.RegisterPartEvent(this, EVENT_NAME);
+      Registrar.Register(EVENT_NAME);
+      base.Register(Object, Registrar);
     }
 
     public override bool FireEvent(XRL.World.Event E)
@@ -218,7 +194,7 @@ namespace HunterZ.HZMapPinToggle
         case CategoryBehavior.SYNC:
         {
           // add categories with tracked notes to hash set
-          System.Collections.Generic.HashSet<string> catSet = new System.Collections.Generic.HashSet<string>();
+          System.Collections.Generic.HashSet<string> catSet = new();
           foreach (Qud.API.JournalMapNote mapNote in Qud.API.JournalAPI.GetMapNotes(
                    (Qud.API.JournalMapNote item) => item.Revealed && item.Tracked))
           {
@@ -248,8 +224,6 @@ namespace HunterZ.HZMapPinToggle
       player.AddPart<HZMapPinTogglePart>();
       // also set up ability
       HZMapPinTogglePart.AddAbility(player);
-      // ...and force-enable it on the world map
-      HZMapPinTogglePart.EnableAbility();
     }
   }
 
@@ -267,8 +241,6 @@ namespace HunterZ.HZMapPinToggle
       player.RequirePart<HZMapPinTogglePart>();
       // also set up ability if needed
       HZMapPinTogglePart.AddAbility(player);
-      // ...and force-enable it on the world map
-      HZMapPinTogglePart.EnableAbility();
     }
   }
 }
